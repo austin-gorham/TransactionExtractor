@@ -13,11 +13,8 @@ namespace TransactionExtractor
         [GeneratedRegex(@"\sEFT\s")]
         public static partial Regex IsSingleLineGeneratedRegex();
 
-        [GeneratedRegex(@"^\w{3}\d{2}")]
-        public static partial Regex EntryDateGR();
-
-        [GeneratedRegex(@"^\")]
-        public static partial Regex MediumGR();
+        [GeneratedRegex(@"(^[a-z]{3}\d{2})e?\s(.+)\s([\d{1-3},]*\d+\.\d{2})(-?)\s[\d{1-3},]*\d+\.\d{2}$")]
+        public static partial Regex firstLineGR();
 
 
         public enum Account
@@ -70,11 +67,44 @@ namespace TransactionExtractor
 
         public TransactionEntry(string firstLine, string secondLine = "" )
         {
-            string[] holder = EntryDateGR().Split(firstLine, 1);
-            this.date = holder[0];
-            holder[1].TrimStart();
+            Match firstLineMatch = firstLineGR().Match(firstLine);
 
-            holder = MediumGR().Split(holder[1], 1);
+            this.date = firstLineMatch.Groups[1].Value;
+            string medium = firstLineMatch.Groups[2].Value;
+            this.amount = firstLineMatch.Groups[3].Value;
+            string sign = firstLineMatch.Groups[4].Value;
+
+            if (secondLine != string.Empty)
+            {
+                //do description things
+            }
+
+            switch( medium.Substring(0, 3) ) { 
+                case "Deb" :
+                    this.accountTo = Account.Out;
+                    this.accountFrom = Account.Checking;
+                    break;
+                case "EFT":
+                    this.accountTo = Account.Out;
+                    this.accountFrom = Account.Checking;
+                    break;
+                case "Div":
+                    this.accountTo = Account.Checking;
+                    this.accountFrom = Account.Out;
+                    break;
+                case "Tra":
+                    this.accountTo = Account.Out;
+                    this.accountFrom = Account.Checking;
+                    break;
+                default:
+                    break;
+                    
+            }
+
+
+            this.description = "";
+
+
         }
 
         public string ToCSVLine()
