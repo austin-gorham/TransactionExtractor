@@ -13,6 +13,13 @@ namespace TransactionExtractor
         [GeneratedRegex(@"\sEFT\s")]
         public static partial Regex IsSingleLineGeneratedRegex();
 
+        [GeneratedRegex(@"^\w{3}\d{2}")]
+        public static partial Regex EntryDateGR();
+
+        [GeneratedRegex(@"^\")]
+        public static partial Regex MediumGR();
+
+
         public enum Account
         {
             Checking,
@@ -51,21 +58,25 @@ namespace TransactionExtractor
             Income_Interest
         }
 
-        public string date;
-        public Account accountTo;
-        public Account accountFrom;
-        public string amount;
-        public string description;
-        public Category category;
+        private string date;
+        private Account accountTo;
+        private Account accountFrom;
+        private string amount;
+        private string description;
+        private Category category;
 
         public TransactionEntry(string date, Account to, Account from, string amt, string description, Category cat) =>
             (this.date, this.accountTo, this.accountFrom, this.amount, this.description, this.category) = (date, to, from, amt, description, cat);
 
         public TransactionEntry(string firstLine, string secondLine = "" )
         {
+            string[] holder = EntryDateGR().Split(firstLine, 1);
+            this.date = holder[0];
+            holder[1].TrimStart();
 
+            holder = MediumGR().Split(holder[1], 1);
         }
-        
+
         public string ToCSVLine()
         {
 

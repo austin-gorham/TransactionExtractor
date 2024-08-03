@@ -22,11 +22,11 @@ namespace TransactionExtractor
             {
                 while(sr.Peek() != -1)
                 {
-                    string firstLine = sr.ReadLine();
+                    string firstLine = sr.ReadLine() ?? "";
                     string secondLine = "";
                     if ( !TransactionEntry.IsSingleLineGeneratedRegex().IsMatch(firstLine) )
                     {
-                        secondLine = sr.ReadLine();
+                        secondLine = sr.ReadLine() ?? "";
                     }
 
                     list.Add(new TransactionEntry(firstLine, secondLine));
