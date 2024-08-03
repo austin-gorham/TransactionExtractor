@@ -10,10 +10,12 @@ namespace TransactionExtractor
 {
     internal partial class TransactionEntry
     {
-        [GeneratedRegex(@"\sEFT\s")]
-        public static partial Regex IsSingleLineGeneratedRegex();
+        [GeneratedRegex(@"^[a-z]{3}\d{2}e?\s",
+            RegexOptions.IgnoreCase)]
+        public static partial Regex IsNewEntryGR();
 
-        [GeneratedRegex(@"(^[a-z]{3}\d{2})e?\s(.+)\s([\d{1-3},]*\d+\.\d{2})(-?)\s[\d{1-3},]*\d+\.\d{2}$")]
+        [GeneratedRegex(@"(^[a-z]{3}\d{2})e?\s(.+)\s([\d{1-3},]*\d+\.\d{2})(-?)\s[\d{1-3},]*\d+\.\d{2}$",
+            RegexOptions.IgnoreCase)]
         public static partial Regex firstLineGR();
 
 
@@ -62,55 +64,65 @@ namespace TransactionExtractor
         private string description;
         private Category category;
 
-        public TransactionEntry(string date, Account to, Account from, string amt, string description, Category cat) =>
-            (this.date, this.accountTo, this.accountFrom, this.amount, this.description, this.category) = (date, to, from, amt, description, cat);
-
+        /// <summary>
+        /// constructs an entry object from text records
+        /// </summary>
+        /// <param name="firstLine">primary part of entry; includes date, medium, amount, sign, as well as some extraneous data which is ignored</param>
+        /// <param name="secondLine">optional secondary part of entry which includes some descriptive info, sometimes useful, sometimes not</param>
         public TransactionEntry(string firstLine, string secondLine = "" )
         {
+            //Captures desired data into groups via regex
             Match firstLineMatch = firstLineGR().Match(firstLine);
 
+            //assigns data, some is fine as is, some is needs further processing
             this.date = firstLineMatch.Groups[1].Value;
             string medium = firstLineMatch.Groups[2].Value;
-            this.amount = firstLineMatch.Groups[3].Value;
+            this.amount = firstLineMatch.Groups[3].Value.Replace(",","");
             string sign = firstLineMatch.Groups[4].Value;
+
+            //Console.WriteLine("New entry for: " + this.date);
 
             if (secondLine != string.Empty)
             {
-                //do description things
+                //TODO: description things
             }
 
-            switch( medium.Substring(0, 3) ) { 
-                case "Deb" :
-                    this.accountTo = Account.Out;
-                    this.accountFrom = Account.Checking;
-                    break;
-                case "EFT":
-                    this.accountTo = Account.Out;
-                    this.accountFrom = Account.Checking;
-                    break;
-                case "Div":
-                    this.accountTo = Account.Checking;
-                    this.accountFrom = Account.Out;
-                    break;
-                case "Tra":
-                    this.accountTo = Account.Out;
-                    this.accountFrom = Account.Checking;
-                    break;
-                default:
-                    break;
-                    
+            //TRANSFERs are the medium that won't have an Account.Out in them
+            Account nonChecking = medium[..3] == "TRA" ? Account.Savings : Account.Out;
+
+            //Sign determines which account is gaining vs losing
+            if( sign == "-") 
+            {
+                this.accountTo = nonChecking;
+                this.accountFrom = Account.Checking;
+            } else 
+            {
+                this.accountTo = Account.Checking;
+                this.accountFrom = nonChecking;
             }
 
 
-            this.description = "";
+            this.description = secondLine;
 
 
         }
 
+        /// <summary>
+        /// Builds the csv line for a given entry
+        /// essentially a tostring but more specific
+        /// </summary>
+        /// <returns>a line in CSV format representing the transaction entry</returns>
         public string ToCSVLine()
         {
+            StringBuilder sb = new();
 
-            StringBuilder sb = new StringBuilder();
+            sb.AppendFormat("{0},{1},-,{2},{3},{4},{5}\n", 
+                this.date,
+                this.amount,
+                this.description,
+                this.category,
+                this.accountTo,
+                this.accountFrom);
 
             return sb.ToString();
         }
