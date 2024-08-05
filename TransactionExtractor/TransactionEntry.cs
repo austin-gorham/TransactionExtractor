@@ -10,13 +10,43 @@ namespace TransactionExtractor
 {
     internal partial class TransactionEntry
     {
+        // Matches if there a date at the start of line
         [GeneratedRegex(@"^[a-z]{3}\d{2}e?\s",
             RegexOptions.IgnoreCase)]
         public static partial Regex IsNewEntryGR();
 
+        /** Extracts important data from first line of entries into 4 capture groups
+         * Regex breakdown from left to right:
+         * date posted (capture group 1)
+         * sometimes E is appended to the date, bank statement doesn't clarify
+         * medium of transaction (capture group 2)
+         * amount transacted (capture group 3)
+         * amount sign (capture group 4)
+         * new balance amount
+         */
         [GeneratedRegex(@"(^[a-z]{3}\d{2})e?\s(.+)\s([\d{1-3},]*\d+\.\d{2})(-?)\s[\d{1-3},]*\d+\.\d{2}$",
             RegexOptions.IgnoreCase)]
         public static partial Regex firstLineGR();
+
+        /** Extracts the organization from debit entries while trimming as much as i can muster
+         * Regex breakdown from left to right:
+         * debit transaction number
+         * square tag (optional non-capture group)
+         * toast tag (optional non-capture group)
+         * organization (lazy capture group 1) <- this is the important part
+         * amazon order number (optional non-capture group)
+         * store number / address (optional non-capture group)
+         * date of purchase (non-capture group)
+         */
+        [GeneratedRegex(@"^\w+\s(?:SQ\s\*)?(?:TST\*\s)?(.+?)(?:\*\w+\s.+)?(?:\s[#\w]?\d+.*)?(?:\s\d\d-\d\d-\d\d)$")]
+        public static partial Regex DebitOrganizationGR();
+
+        /** Matches each potential org to a group to check success for decisions
+         * H-E-B (capture group 1)
+         * TSU (capture group 2)
+         */
+        [GeneratedRegex(@"(H-E-B)|(TSU)")]
+        public static partial Regex EftOrganization_GR();
 
 
         public enum Account
@@ -28,6 +58,8 @@ namespace TransactionExtractor
 
         public enum Category
         {
+            Unknown,
+            Transfer,
             Transportation_Fuel,
             Transportation_Miscellaneous,
             Food_Internal,
@@ -57,12 +89,13 @@ namespace TransactionExtractor
             Income_Interest
         }
 
-        private string date;
-        private Account accountTo;
-        private Account accountFrom;
-        private string amount;
-        private string description;
-        private Category category;
+        private readonly string date;
+        private readonly Account accountTo;
+        private readonly Account accountFrom;
+        private readonly string amount;
+        private readonly string description = "-";
+        private readonly string organziation = "-";
+        private readonly Category category = Category.Unknown;
 
         /// <summary>
         /// constructs an entry object from text records
@@ -80,30 +113,62 @@ namespace TransactionExtractor
             this.amount = firstLineMatch.Groups[3].Value.Replace(",","");
             string sign = firstLineMatch.Groups[4].Value;
 
+            string medShort = medium[..3];
+
             //Console.WriteLine("New entry for: " + this.date);
 
-            if (secondLine != string.Empty)
+            
+            //Default non-checking account, possible modified in data decision tree
+            Account nonChecking = Account.Out;
+
+            //Data decision tree
+            switch (medShort)
             {
-                //TODO: description things
+                case "DEB":
+                    this.description = "-";
+                    this.organziation = DebitOrganizationGR().Match(secondLine).Groups[1].Value;
+                    this.category = GetCatFromOrg(this.organziation);
+                    break;
+                case "TRA":
+                    nonChecking = Account.Savings;//Transfers move to/from savings instead of out
+                    this.description = "Transfer";
+                    this.organziation = "-";
+                    this.category = Category.Transfer;
+                    break;
+                case "DIV":
+                    this.description = "Dividend";
+                    this.organziation = "Educators";
+                    this.category = Category.Income_Interest;
+                    break;
+                case "EFT":
+                    if (EftOrganization_GR().Match(medium).Groups[1].Success)//HEB
+                    {
+                        this.description = "Paycheck";
+                        this.organziation = "HEB";
+                        this.category = Category.Income_HEB;
+                    } 
+                    else if (EftOrganization_GR().Match(medium).Groups[2].Success)//TSU
+                    {
+                        this.description = "Tuition";
+                        this.organziation = "Tarleton State University";
+                        this.category = Category.Education_School;
+                    }
+                    break;
+                default: 
+                    break;
             }
 
-            //TRANSFERs are the medium that won't have an Account.Out in them
-            Account nonChecking = medium[..3] == "TRA" ? Account.Savings : Account.Out;
-
             //Sign determines which account is gaining vs losing
-            if( sign == "-") 
+            if (sign == "-")
             {
                 this.accountTo = nonChecking;
                 this.accountFrom = Account.Checking;
-            } else 
+            }
+            else
             {
                 this.accountTo = Account.Checking;
                 this.accountFrom = nonChecking;
             }
-
-
-            this.description = secondLine;
-
 
         }
 
@@ -116,15 +181,39 @@ namespace TransactionExtractor
         {
             StringBuilder sb = new();
 
-            sb.AppendFormat("{0},{1},-,{2},{3},{4},{5}\n", 
+            sb.AppendFormat("{0},{1},{2},{3},{4},{5},{6}\n", 
                 this.date,
                 this.amount,
                 this.description,
-                this.category,
+                this.organziation,
+                this.category.ToString().Replace("_"," - "),
                 this.accountTo,
                 this.accountFrom);
 
             return sb.ToString();
+        }
+
+        private static readonly Dictionary<string, Category> orgToCatDict = FileProcessor.GetSavedOrgs();
+
+
+        /// <summary>
+        /// Gets the category for a given org
+        /// adds it to the dictionary if it doesn't already exist
+        /// then saves the dictionary
+        /// </summary>
+        /// <param name="org">org to get category for</param>
+        /// <returns>Corresponding category for an org</returns>
+        static Category GetCatFromOrg(string org)
+        {
+            
+            if (!orgToCatDict.TryGetValue(org, out Category cat))
+            {
+                orgToCatDict.Add(org, Category.Unknown);
+            }
+
+            FileProcessor.SaveOrgsAndCats(orgToCatDict);
+
+            return cat;
         }
 
     }
