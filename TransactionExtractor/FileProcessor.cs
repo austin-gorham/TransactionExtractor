@@ -11,10 +11,11 @@ namespace TransactionExtractor
     internal static partial class FileProcessor
     {
 
+        //used to match the filetype for replacement
         [GeneratedRegex(@"(\.\w{1,3})$")]
         public static partial Regex fileTypeGR();
 
-
+        //Organization and Category dictionary file
         const string orgFile = "OrgsAndCats.txt";
 
 
@@ -31,25 +32,41 @@ namespace TransactionExtractor
             using StreamReader sr = new(
                 new FileStream(file, FileMode.OpenOrCreate, FileAccess.Read));
 
-            /*
-                * Entries can be 1 or 2 lines
-                * so need to queue up two at a time
-                * and check if they are both entries
-                * before creating an entry out of the first line
-                * tags the second line along if it is not an entry (assumed part of first)
-                */
+            /**
+             * Entries can be 1 or 2 lines
+             * so need to queue up two at a time
+             * and check if they are both entries
+             * before creating an entry out of the first line
+             * tags the second line along if it is not an entry (assumed part of first)
+             */
             string newEntry = "";
             while (sr.Peek() != -1)
             {
-                //Console.WriteLine("reading new line");
+
+                /** Loop logic:
+                 * If the next line is an entry's first line
+                     * create object from previous entry if not empty,
+                     * and assign next line to new entry for next go around
+                     * (need to check following line if part of newEntry)
+                 * else if next line is not a new entry and previous entry exists
+                     * create object from newEntry and nextLine
+                     * (no validation of second line; assumed part of first)
+                     * set newEntry to empty as it's been used
+                 * After loop exit, last entry could still be in newEntry
+                 * as there was no nextLine to check and loop exits before logic of said check
+                 * so if not empty, create object from newEntry
+                 */
+
                 string nextLine = sr.ReadLine()?.Trim() ?? "";
+
                 if ( TransactionEntry.IsNewEntryGR().IsMatch(nextLine) )
                 {
                     if (!String.IsNullOrEmpty(newEntry))
                         list.Add(new TransactionEntry(newEntry));
                     newEntry = nextLine;
-                } else if (!String.IsNullOrEmpty(newEntry)) 
+                } else if (!String.IsNullOrEmpty(newEntry)) //i think unnecessary if input is reliable, not sure if i want to keep error handing here or pass on
                 { 
+
                     list.Add(new TransactionEntry(newEntry, nextLine));
                     newEntry = String.Empty;
                 }
@@ -109,7 +126,7 @@ namespace TransactionExtractor
 
                 if (fields.Length == 2)
                 {
-                    try
+                    try //trys to parse enum, adds with default value if it fails
                     {
                         TransactionEntry.Category cat =
                             Enum.Parse<TransactionEntry.Category>(fields[1]);

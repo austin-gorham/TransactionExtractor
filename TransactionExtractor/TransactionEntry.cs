@@ -113,6 +113,7 @@ namespace TransactionExtractor
             this.amount = firstLineMatch.Groups[3].Value.Replace(",","");
             string sign = firstLineMatch.Groups[4].Value;
 
+            //shortened medium string for bulk of comparisons
             string medShort = medium[..3];
 
             //Console.WriteLine("New entry for: " + this.date);
@@ -207,9 +208,7 @@ namespace TransactionExtractor
         {
             
             if (!orgToCatDict.TryGetValue(org, out Category cat))
-            {
                 orgToCatDict.Add(org, Category.Unknown);
-            }
 
             FileProcessor.SaveOrgsAndCats(orgToCatDict);
 
