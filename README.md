@@ -43,6 +43,7 @@ Why Project Useful:
   
 Possible Future Project Features:  
 
+  Fork with all personal data scrambled for public release
   More robust and feature-rich file I/O  
     Allow multiple file inputs at one time  
     Options for combining multiple files into one  
