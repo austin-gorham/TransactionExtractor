@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace TransactionExtractor
 {
-    internal partial class TransactionEntry
+    public partial class TransactionEntry
     {
         // Matches if there a date at the start of line
         [GeneratedRegex(@"^[a-z]{3}\d{2}e?\s",
@@ -95,7 +96,7 @@ namespace TransactionExtractor
         private readonly string amount;
         private readonly string description = "-";
         private readonly string organziation = "-";
-        private readonly Category category = Category.Unknown;
+        private Category category = Category.Unknown;//mutable since might need update after construction
 
         /// <summary>
         /// constructs an entry object from text records
@@ -128,7 +129,7 @@ namespace TransactionExtractor
                 case "DEB":
                     this.description = "-";
                     this.organziation = DebitOrganizationGR().Match(secondLine).Groups[1].Value;
-                    this.category = GetCatFromOrg(this.organziation);
+                    this.category = OrgToCatDictionary.GetCatFromOrgAndUpdate(this.organziation);
                     break;
                 case "TRA":
                     nonChecking = Account.Savings;//Transfers move to/from savings instead of out
@@ -194,25 +195,24 @@ namespace TransactionExtractor
             return sb.ToString();
         }
 
-        private static readonly Dictionary<string, Category> orgToCatDict = FileProcessor.GetSavedOrgs();
+
 
 
         /// <summary>
-        /// Gets the category for a given org
-        /// adds it to the dictionary if it doesn't already exist
-        /// then saves the dictionary
+        /// Updates the OrgToCatDictionary
+        /// Tries to update category if unknown
+        /// assuming dictionary and corresponding
+        /// cat has changed since construction
         /// </summary>
-        /// <param name="org">org to get category for</param>
-        /// <returns>Corresponding category for an org</returns>
-        static Category GetCatFromOrg(string org)
+        public void UpdateUnknownCat()
         {
-            
-            if (!orgToCatDict.TryGetValue(org, out Category cat))
-                orgToCatDict.Add(org, Category.Unknown);
-
-            FileProcessor.SaveOrgsAndCats(orgToCatDict);
-
-            return cat;
+            OrgToCatDictionary.UpdateDictionary();
+            if (this.category == Category.Unknown)
+            {
+                this.category = OrgToCatDictionary.GetCatFromOrg(this.organziation);
+                if (this.category != Category.Unknown) 
+                    Console.WriteLine("> Entry updated: " + this.ToCSVLine());
+            }
         }
 
     }

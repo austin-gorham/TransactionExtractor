@@ -30,7 +30,7 @@ namespace TransactionExtractor
             List<TransactionEntry> list = [];
 
             using StreamReader sr = new(
-                new FileStream(file, FileMode.OpenOrCreate, FileAccess.Read));
+                new FileStream(file, FileMode.Open, FileAccess.Read));
 
             /**
              * Entries can be 1 or 2 lines

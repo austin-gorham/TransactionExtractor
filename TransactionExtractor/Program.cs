@@ -1,13 +1,20 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using System.Data;
 using TransactionExtractor;
+using System.Text;
+using System.Text.RegularExpressions;
+
+
+//Main command input loop
 while (true)
 {
-    Console.WriteLine("Enter records file path:");
-    string filepath = Console.ReadLine() ?? "";
+
+    Console.Write("Transaction Extractor > ");
+    string input = Console.ReadLine() ?? "";
+
     try
     {
-        List<TransactionEntry> list = FileProcessor.GetEntries(filepath);
-        FileProcessor.WriteEntries(filepath, list);
+        CommandProcessor.ProcessCommand(input);
     }
     catch (Exception e)
     {
@@ -15,4 +22,8 @@ while (true)
         Console.WriteLine(e.Message.ToString());
         Console.Write(e.StackTrace);
     }
+
+    
+
+
 }
