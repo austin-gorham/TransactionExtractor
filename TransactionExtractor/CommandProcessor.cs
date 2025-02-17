@@ -12,6 +12,10 @@ namespace TransactionExtractor
         [GeneratedRegex(@"(\w+)(\s.*)?", RegexOptions.IgnoreCase)]
         public static partial Regex CommandGR();
 
+
+        [GeneratedRegex(@".*\.(\w*?$)")]
+        public static partial Regex FileExtension();
+
         private static List<TransactionEntry> transactionList = new();
 
         /// <summary>
@@ -60,12 +64,29 @@ namespace TransactionExtractor
         {
             string[] paths = pathsArgument.Trim().Split(new char[] { ' ' });
 
+
             foreach(string path in paths)
             {
                 try
                 {
-                    transactionList.AddRange(FileProcessor.GetEntries(path.Trim('"','\'')));
-                    Console.WriteLine(" > Successfully imported " + path);
+                    string trimmedPath = path.Trim('"', '\'', ' ');
+                    string extension = FileExtension().Match(trimmedPath).Groups[1].Value;
+
+                    switch (extension)
+                    {
+                        case "txt":
+                            transactionList.AddRange(FileProcessor.GetEntriesFromTxt(trimmedPath));
+                            Console.WriteLine(" > Successfully imported " + trimmedPath);
+                            break;
+                        case "pdf":
+                            transactionList.AddRange(FileProcessor.GetEntriesFromPDF(trimmedPath));
+                            Console.WriteLine(" > Successfully imported " + trimmedPath);
+                            break;
+                        default:
+                            Console.WriteLine($" > Unsupported file extension '{extension}'");
+                            break;
+                    }
+                    
                 }
                 catch 
                 {
@@ -74,6 +95,7 @@ namespace TransactionExtractor
 
             }
         }
+
 
         /// <summary>
         /// updates all entries with new categories

@@ -4,6 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.PageSegmenter;
+using UglyToad.PdfPig.DocumentLayoutAnalysis;
 using static TransactionExtractor.TransactionEntry;
 
 namespace TransactionExtractor
@@ -24,7 +28,7 @@ namespace TransactionExtractor
         /// </summary>
         /// <param name="file">file to extract from</param>
         /// <returns>list of transaction entry objects</returns>
-        public static List<TransactionEntry> GetEntries(string file)
+        public static List<TransactionEntry> GetEntriesFromTxt(string file)
         {
 
             List<TransactionEntry> list = [];
@@ -161,6 +165,74 @@ namespace TransactionExtractor
 
             }
             
+        }
+
+        [GeneratedRegex(@"(?:^DIRECT CHOICE ACCT# 2 .* PREVIOUS BALANCE .*\d\d$)|(?:^CHARGE$)")]
+        public static partial Regex Entrance();
+
+        [GeneratedRegex(@"(?:^Continued on page \d+$)|(?:^Notice)|(?:^\*\*\*)")]
+        public static partial Regex Exit();
+
+
+        public static List<TransactionEntry> GetEntriesFromPDF(string pdfFile)
+        {
+            List<TransactionEntry> list = [];
+
+            using (PdfDocument document = PdfDocument.Open(pdfFile))
+            {
+                string newEntry = "";
+                foreach (Page page in document.GetPages())
+                {
+                    var words = page.GetWords();
+
+                    var blocks = DefaultPageSegmenter.Instance.GetBlocks(words);
+
+                    bool inDataBlock = false;
+
+                    
+                    foreach (var block in blocks)
+                    {
+                        
+                        foreach (TextLine line in block.TextLines)
+                        {
+                            if(inDataBlock)
+                            {
+                                if (Exit().Match(line.ToString()).Success) 
+                                {
+                                    inDataBlock = false;
+                                    break;
+                                }
+                                string nextLine = line.ToString();
+
+                                if (TransactionEntry.IsNewEntryGR().IsMatch(nextLine))
+                                {
+                                    Console.WriteLine(line.ToString());
+                                    if (!String.IsNullOrEmpty(newEntry))
+                                        list.Add(new TransactionEntry(newEntry));
+
+                                    newEntry = nextLine;
+                                }
+                                else if (!String.IsNullOrEmpty(newEntry)) //i think unnecessary if input is reliable, not sure if i want to keep error handing here or pass on
+                                {
+
+                                    list.Add(new TransactionEntry(newEntry, nextLine));
+                                    newEntry = String.Empty;
+                                }
+                                //Console.WriteLine(line.ToString());
+                            } else
+                            {
+                                if (Entrance().Match(line.ToString()).Success)
+                                    inDataBlock = true;
+                            }
+                            //Console.WriteLine(line.ToString());
+                        }
+
+                    }
+                }
+                if (!String.IsNullOrEmpty(newEntry))
+                    list.Add(new TransactionEntry(newEntry));
+            }
+            return list;
         }
     }
 }
