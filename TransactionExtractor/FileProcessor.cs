@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Security.AccessControl;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
-using UglyToad.PdfPig.DocumentLayoutAnalysis.PageSegmenter;
 using UglyToad.PdfPig.DocumentLayoutAnalysis;
-using static TransactionExtractor.TransactionEntry;
+using UglyToad.PdfPig.DocumentLayoutAnalysis.PageSegmenter;
+using static TransactionExtractor.RegexContainer;
 
 namespace TransactionExtractor
 {
@@ -20,10 +15,10 @@ namespace TransactionExtractor
 
 
         /// <summary>
-        /// Gets entries from a file path and constructs them into a list of entry objects
+        /// Gets entries from a txt file path and constructs them into a list of entry objects
         /// </summary>
         /// <param name="file">file to extract from</param>
-        /// <returns>list of transaction entry objects</returns>
+        /// <returns>list of transaction entry objects extracted</returns>
         internal static List<TransactionEntry> GetEntriesFromTxt(string file)
         {
 
@@ -59,17 +54,8 @@ namespace TransactionExtractor
 
                 string nextLine = sr.ReadLine()?.Trim() ?? "";
 
-                if ( RegexContainer.IsNewEntryGR().IsMatch(nextLine) )
-                {
-                    if (!String.IsNullOrEmpty(newEntry))
-                        list.Add(new TransactionEntry(newEntry));
-                    newEntry = nextLine;
-                } else if (!String.IsNullOrEmpty(newEntry)) //i think unnecessary if input is reliable, not sure if i want to keep error handing here or pass on
-                { 
-
-                    list.Add(new TransactionEntry(newEntry, nextLine));
-                    newEntry = String.Empty;
-                }
+                if (ParseEntryLines(ref newEntry, ref nextLine) is TransactionEntry te) 
+                    list.Add(te);
             }
             if (!String.IsNullOrEmpty(newEntry))
                 list.Add(new TransactionEntry(newEntry));
@@ -89,8 +75,8 @@ namespace TransactionExtractor
             Console.WriteLine(file);
             string outputFile;
 
-            if (RegexContainer.FileExtensionGR().Match(file.TrimEnd()).Success)
-                outputFile = RegexContainer.FileExtensionGR().Replace(file, ".csv");
+            if (FileExtensionGR().IsMatch(file.TrimEnd()))
+                outputFile = FileExtensionGR().Replace(file, ".csv");
             else
                 outputFile = "output.csv";
 
@@ -101,9 +87,9 @@ namespace TransactionExtractor
             foreach (var entry in entries)
             {
                 sw.Write(entry.ToCSVLine());
-                    
+
             }
-            
+
             Console.WriteLine("CSV file output: " + outputFile);
         }
 
@@ -160,64 +146,55 @@ namespace TransactionExtractor
                 sw.WriteLine(kvp.Key + "," + kvp.Value);
 
             }
-            
+
         }
 
-
+        /// <summary>
+        /// Gets entries from a pdf file path and constructs them into a list of entry objects
+        /// </summary>
+        /// <param name="pdfFile">file to extract from</param>
+        /// <returns>list of transaction entry objects extracted</returns>
         internal static List<TransactionEntry> GetEntriesFromPDF(string pdfFile)
         {
             List<TransactionEntry> list = [];
 
+             //Most of these scopes are pulling, formatting, and iterating through data
             using (PdfDocument document = PdfDocument.Open(pdfFile))
             {
                 string newEntry = "";
                 foreach (Page page in document.GetPages())
                 {
-                    var words = page.GetWords();
 
-                    var blocks = DefaultPageSegmenter.Instance.GetBlocks(words);
+                    var blocks = DefaultPageSegmenter.Instance.GetBlocks(page.GetWords());
 
                     bool inDataBlock = false;
 
-                    
-                    foreach (var block in blocks)
+
+                    /** This is where things get juicy
+                     * Gotta check whether the parser is currently in the data we care about
+                     * Does that by checking against pre-determined indicators and changing a flag
+                     * tbh, i think this is inefficient check-wise but whatever
+                     * See the text version and the ParseEntries function for
+                     * details on the parsing logic.  its less messier over there
+                     * but is effectively the same thing
+                     */
+                    foreach (TextLine line in blocks[0].TextLines)
                     {
-                        
-                        foreach (TextLine line in block.TextLines)
+                        if (inDataBlock)
                         {
-                            if(inDataBlock)
+                            if (IsDataBlockExitGR().IsMatch(line.ToString()))
                             {
-                                if (inDataBlock 
-                                    && RegexContainer.IsDataBlockExitGR().Match(line.ToString()).Success) 
-                                {
-                                    inDataBlock = false;
-                                    break;
-                                }
-                                string nextLine = line.ToString();
-
-                                if (RegexContainer.IsNewEntryGR().IsMatch(nextLine))
-                                {
-                                    //Console.WriteLine(line.ToString());
-                                    if (!String.IsNullOrEmpty(newEntry))
-                                        list.Add(new TransactionEntry(newEntry));
-
-                                    newEntry = nextLine;
-                                }
-                                else if (!String.IsNullOrEmpty(newEntry)) //i think unnecessary if input is reliable, not sure if i want to keep error handing here or pass on
-                                {
-
-                                    list.Add(new TransactionEntry(newEntry, nextLine));
-                                    newEntry = String.Empty;
-                                }
-                                //Console.WriteLine(line.ToString());
-                            } else
-                            {
-                                if (!inDataBlock 
-                                    && RegexContainer.IsDataBlockEntranceGR().Match(line.ToString()).Success)
-                                    inDataBlock = true;
+                                inDataBlock = false;
+                                break;
                             }
-                            //Console.WriteLine(line.ToString());
+
+                            string nextLine = line.ToString();
+
+                            if (ParseEntryLines(ref newEntry, ref nextLine) is TransactionEntry te)
+                                list.Add(te);
                         }
+                        else if (IsDataBlockEntranceGR().IsMatch(line.ToString()))
+                            inDataBlock = true;
 
                     }
                 }
@@ -226,5 +203,46 @@ namespace TransactionExtractor
             }
             return list;
         }
+        
+        /// <summary>
+        /// Determines if the provided lines need to make an entry
+        /// </summary>
+        /// <param name="newEntry">entry to build</param>
+        /// <param name="nextLine">line after newEntry to check if second line or a separate entry</param>
+        /// <returns>constructed entry, if there is one.  can be null if not</returns>
+        internal static TransactionEntry? ParseEntryLines(ref string newEntry, ref string nextLine)
+        {
+
+            /** Loop logic:
+             * If the next line is an entry's first line
+                * create object from previous entry if not empty,
+                * and assign next line to new entry for next go around
+                * (need to check following line if part of newEntry)
+             * else if next line is not a new entry and previous entry exists
+                * create object from newEntry and nextLine
+                * (no validation of second line; assumed part of first)
+                * set newEntry to empty as it's been used
+             * After loop exit, last entry could still be in newEntry
+             * as there was no nextLine to check and loop exits before logic of said check
+             * so if not empty, create object from newEntry
+             */
+
+            TransactionEntry? entry = null;
+
+            if (IsNewEntryGR().IsMatch(nextLine))
+            {
+                if (!String.IsNullOrEmpty(newEntry))
+                    entry = new TransactionEntry(newEntry);
+                newEntry = nextLine;
+            }
+            else if (!String.IsNullOrEmpty(newEntry))
+            {
+                entry = new TransactionEntry(newEntry, nextLine);
+                newEntry = String.Empty;
+            }
+
+            return entry;
+        }
+
     }
 }

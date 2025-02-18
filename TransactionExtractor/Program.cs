@@ -1,8 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using System.Data;
 using TransactionExtractor;
-using System.Text;
-using System.Text.RegularExpressions;
 
 
 //Main command input loop
@@ -23,7 +20,7 @@ while (true)
         Console.Write(e.StackTrace);
     }
 
-    
+
 
 
 }

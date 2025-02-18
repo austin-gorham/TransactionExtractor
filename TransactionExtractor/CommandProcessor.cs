@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 namespace TransactionExtractor
 {
@@ -16,8 +11,9 @@ namespace TransactionExtractor
         /// Initial command parsing and decision tree
         /// </summary>
         /// <param name="input">command to parse</param>
-        internal static void ProcessCommand(string input) { 
-            Match commandMatch = RegexContainer.CommandGR().Match(input); 
+        internal static void ProcessCommand(string input)
+        {
+            Match commandMatch = RegexContainer.CommandGR().Match(input);
 
             string command = commandMatch.Groups[1].Value;
             string arguments = commandMatch.Groups[2].Value;
@@ -25,9 +21,9 @@ namespace TransactionExtractor
             Console.WriteLine("command entered: " + command);
             Console.WriteLine("arguments entered: " + arguments);
 
-            switch (command) 
+            switch (command)
             {
-                case "import": 
+                case "import":
                     ImportFromPaths(arguments);
                     break;
                 case "export":
@@ -59,7 +55,7 @@ namespace TransactionExtractor
             string[] paths = pathsArgument.Trim().Split(' ');
 
 
-            foreach(string path in paths)
+            foreach (string path in paths)
             {
                 try
                 {
@@ -80,9 +76,9 @@ namespace TransactionExtractor
                             Console.WriteLine($" > Unsupported file extension '{extension}'");
                             break;
                     }
-                    
+
                 }
-                catch 
+                catch
                 {
                     Console.WriteLine(" > Failed to import " + path);
                 }

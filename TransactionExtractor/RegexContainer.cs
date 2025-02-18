@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 
 namespace TransactionExtractor
 {
@@ -36,7 +31,7 @@ namespace TransactionExtractor
         // Matches if there a date at the start of line
         [GeneratedRegex(@"^[a-z]{3}\d{2}e?\s",
             RegexOptions.IgnoreCase)]
-        internal static partial Regex IsNewEntryGR(); 
+        internal static partial Regex IsNewEntryGR();
 
         /** Extracts important data from first line of entries into 4 capture groups
          * Regex breakdown from left to right:
@@ -49,7 +44,7 @@ namespace TransactionExtractor
          */
         [GeneratedRegex(@"(^[a-z]{3}\d{2})e?\s(.+)\s([\d{1-3},]*\d+\.\d{2})(-?)\s[\d{1-3},]*\d+\.\d{2}$",
             RegexOptions.IgnoreCase)]
-        internal static partial Regex FirstLineExtractorGR(); 
+        internal static partial Regex FirstLineExtractorGR();
 
         /** Extracts the organization from debit entries while trimming as much as i can muster
          * Regex breakdown from left to right:
@@ -62,7 +57,7 @@ namespace TransactionExtractor
          * date of purchase (non-capture group)
          */
         [GeneratedRegex(@"^\w+\s(?:SQ\s\*)?(?:TST\*\s)?(.+?)(?:\*\w+\s.+)?(?:\s[#\w]?\d+.*)?(?:\s\d\d-\d\d-\d\d)$")]
-        internal static partial Regex DebitOrgExtractorGR(); 
+        internal static partial Regex DebitOrgExtractorGR();
 
         /** Matches each potential org to a group to check success for decisions
          * H-E-B (capture group 1)

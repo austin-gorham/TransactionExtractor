@@ -1,11 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace TransactionExtractor
 {
@@ -65,7 +59,7 @@ namespace TransactionExtractor
         /// </summary>
         /// <param name="firstLine">primary part of entry; includes date, medium, amount, sign, as well as some extraneous data which is ignored</param>
         /// <param name="secondLine">optional secondary part of entry which includes some descriptive info, sometimes useful, sometimes not</param>
-        internal TransactionEntry(string firstLine, string secondLine = "" )
+        internal TransactionEntry(string firstLine, string secondLine = "")
         {
             //Captures desired data into groups via regex
             Match firstLineMatch = RegexContainer.FirstLineExtractorGR().Match(firstLine);
@@ -73,7 +67,7 @@ namespace TransactionExtractor
             //assigns data, some is fine as is, some is needs further processing
             this.date = firstLineMatch.Groups[1].Value;
             string medium = firstLineMatch.Groups[2].Value;
-            this.amount = firstLineMatch.Groups[3].Value.Replace(",","");
+            this.amount = firstLineMatch.Groups[3].Value.Replace(",", "");
             string sign = firstLineMatch.Groups[4].Value;
 
             //shortened medium string for bulk of comparisons
@@ -81,7 +75,7 @@ namespace TransactionExtractor
 
             //Console.WriteLine("New entry for: " + this.date);
 
-            
+
             //Default non-checking account, possible modified in data decision tree
             Account nonChecking = Account.Out;
 
@@ -110,7 +104,7 @@ namespace TransactionExtractor
                         this.description = "Paycheck";
                         this.organziation = "HEB";
                         this.category = Category.Income_HEB;
-                    } 
+                    }
                     else if (RegexContainer.WhichEftOrgGR().Match(medium).Groups[2].Success)//TSU
                     {
                         this.description = "Tuition";
@@ -118,7 +112,7 @@ namespace TransactionExtractor
                         this.category = Category.Education_School;
                     }
                     break;
-                default: 
+                default:
                     break;
             }
 
@@ -145,12 +139,12 @@ namespace TransactionExtractor
         {
             StringBuilder sb = new();
 
-            sb.AppendFormat("{0},{1},{2},{3},{4},{5},{6}\n", 
+            sb.AppendFormat("{0},{1},{2},{3},{4},{5},{6}\n",
                 this.date,
                 this.amount,
                 this.description,
                 this.organziation,
-                this.category.ToString().Replace("_"," - "),
+                this.category.ToString().Replace("_", " - "),
                 this.accountTo,
                 this.accountFrom);
 
@@ -172,7 +166,7 @@ namespace TransactionExtractor
             if (this.category == Category.Unknown)
             {
                 this.category = OrgToCatDictionary.GetCatFromOrg(this.organziation);
-                if (this.category != Category.Unknown) 
+                if (this.category != Category.Unknown)
                     Console.WriteLine("> Entry updated: " + this.ToCSVLine());
             }
         }

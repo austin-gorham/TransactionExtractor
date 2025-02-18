@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static TransactionExtractor.TransactionEntry;
+﻿using static TransactionExtractor.TransactionEntry;
 
 namespace TransactionExtractor
 {
@@ -15,7 +10,7 @@ namespace TransactionExtractor
         /// <summary>
         /// Updates the dictionary from file
         /// </summary>
-        internal static void UpdateDictionary ()
+        internal static void UpdateDictionary()
         {
             dictionary = FileProcessor.GetSavedOrgs();
         }
@@ -47,9 +42,9 @@ namespace TransactionExtractor
         /// <returns>corresponding category for an org</returns>
         internal static Category GetCatFromOrg(string org)
         {
-            if (dictionary.TryGetValue(org,out Category cat))
+            if (dictionary.TryGetValue(org, out Category cat))
                 return cat;
-            else 
+            else
                 return Category.Unknown;
         }
 
