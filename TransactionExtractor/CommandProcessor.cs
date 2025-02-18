@@ -7,23 +7,17 @@ using System.Threading.Tasks;
 
 namespace TransactionExtractor
 {
-    public static partial class CommandProcessor
+    internal static class CommandProcessor
     {
-        [GeneratedRegex(@"(\w+)(\s.*)?", RegexOptions.IgnoreCase)]
-        public static partial Regex CommandGR();
 
-
-        [GeneratedRegex(@".*\.(\w*?$)")]
-        public static partial Regex FileExtension();
-
-        private static List<TransactionEntry> transactionList = new();
+        private static readonly List<TransactionEntry> transactionList = [];
 
         /// <summary>
         /// Initial command parsing and decision tree
         /// </summary>
         /// <param name="input">command to parse</param>
-        public static void ProcessCommand(string input) { 
-            Match commandMatch = CommandGR().Match(input); 
+        internal static void ProcessCommand(string input) { 
+            Match commandMatch = RegexContainer.CommandGR().Match(input); 
 
             string command = commandMatch.Groups[1].Value;
             string arguments = commandMatch.Groups[2].Value;
@@ -62,7 +56,7 @@ namespace TransactionExtractor
         /// <param name="pathsArgument">arguments (filepaths) from import command</param>
         private static void ImportFromPaths(string pathsArgument)
         {
-            string[] paths = pathsArgument.Trim().Split(new char[] { ' ' });
+            string[] paths = pathsArgument.Trim().Split(' ');
 
 
             foreach(string path in paths)
@@ -70,15 +64,15 @@ namespace TransactionExtractor
                 try
                 {
                     string trimmedPath = path.Trim('"', '\'', ' ');
-                    string extension = FileExtension().Match(trimmedPath).Groups[1].Value;
+                    string extension = RegexContainer.FileExtensionGR().Match(trimmedPath).Groups[1].Value;
 
                     switch (extension)
                     {
-                        case "txt":
+                        case ".txt":
                             transactionList.AddRange(FileProcessor.GetEntriesFromTxt(trimmedPath));
                             Console.WriteLine(" > Successfully imported " + trimmedPath);
                             break;
-                        case "pdf":
+                        case ".pdf":
                             transactionList.AddRange(FileProcessor.GetEntriesFromPDF(trimmedPath));
                             Console.WriteLine(" > Successfully imported " + trimmedPath);
                             break;
@@ -116,7 +110,7 @@ namespace TransactionExtractor
         /// <param name="pathArgument">file to write to</param>
         private static void ExportEntries(string pathArgument)
         {
-            FileProcessor.WriteEntries(pathArgument, transactionList);
+            FileProcessor.WriteEntries(pathArgument.Trim('"', '\'', ' '), transactionList);
         }
 
         /// <summary>

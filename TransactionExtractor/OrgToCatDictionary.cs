@@ -7,7 +7,7 @@ using static TransactionExtractor.TransactionEntry;
 
 namespace TransactionExtractor
 {
-    public static class OrgToCatDictionary
+    internal static class OrgToCatDictionary
     {
 
         private static Dictionary<string, TransactionEntry.Category> dictionary = FileProcessor.GetSavedOrgs();
@@ -15,7 +15,7 @@ namespace TransactionExtractor
         /// <summary>
         /// Updates the dictionary from file
         /// </summary>
-        public static void UpdateDictionary ()
+        internal static void UpdateDictionary ()
         {
             dictionary = FileProcessor.GetSavedOrgs();
         }
@@ -27,7 +27,7 @@ namespace TransactionExtractor
         /// </summary>
         /// <param name="org">org to get category for</param>
         /// <returns>Corresponding category for an org</returns>
-        public static Category GetCatFromOrgAndUpdate(string org)
+        internal static Category GetCatFromOrgAndUpdate(string org)
         {
 
             if (!dictionary.TryGetValue(org, out Category cat))
@@ -45,7 +45,7 @@ namespace TransactionExtractor
         /// </summary>
         /// <param name="org">org to get category for</param>
         /// <returns>corresponding category for an org</returns>
-        public static Category GetCatFromOrg(string org)
+        internal static Category GetCatFromOrg(string org)
         {
             if (dictionary.TryGetValue(org,out Category cat))
                 return cat;

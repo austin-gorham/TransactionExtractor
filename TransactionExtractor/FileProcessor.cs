@@ -12,12 +12,8 @@ using static TransactionExtractor.TransactionEntry;
 
 namespace TransactionExtractor
 {
-    internal static partial class FileProcessor
+    internal static class FileProcessor
     {
-
-        //used to match the filetype for replacement
-        [GeneratedRegex(@"(\.\w{1,3})$")]
-        public static partial Regex fileTypeGR();
 
         //Organization and Category dictionary file
         const string orgFile = "OrgsAndCats.txt";
@@ -28,7 +24,7 @@ namespace TransactionExtractor
         /// </summary>
         /// <param name="file">file to extract from</param>
         /// <returns>list of transaction entry objects</returns>
-        public static List<TransactionEntry> GetEntriesFromTxt(string file)
+        internal static List<TransactionEntry> GetEntriesFromTxt(string file)
         {
 
             List<TransactionEntry> list = [];
@@ -63,7 +59,7 @@ namespace TransactionExtractor
 
                 string nextLine = sr.ReadLine()?.Trim() ?? "";
 
-                if ( TransactionEntry.IsNewEntryGR().IsMatch(nextLine) )
+                if ( RegexContainer.IsNewEntryGR().IsMatch(nextLine) )
                 {
                     if (!String.IsNullOrEmpty(newEntry))
                         list.Add(new TransactionEntry(newEntry));
@@ -88,13 +84,13 @@ namespace TransactionExtractor
         /// </summary>
         /// <param name="file">output file path location; ignores specified file, file name is output.csv</param>
         /// <param name="entries">list of entries to populate file with</param>
-        public static void WriteEntries(string file, List<TransactionEntry> entries)
+        internal static void WriteEntries(string file, List<TransactionEntry> entries)
         {
-
+            Console.WriteLine(file);
             string outputFile;
 
-            if (fileTypeGR().Match(file.TrimEnd()).Success)
-                outputFile = fileTypeGR().Replace(file, ".csv");
+            if (RegexContainer.FileExtensionGR().Match(file.TrimEnd()).Success)
+                outputFile = RegexContainer.FileExtensionGR().Replace(file, ".csv");
             else
                 outputFile = "output.csv";
 
@@ -116,7 +112,7 @@ namespace TransactionExtractor
         /// if a category doesn't parse, writes to console and sets it to default (Category.Unknown)
         /// </summary>
         /// <returns>dictionary of orgs and corresponding categories</returns>
-        public static Dictionary<string, TransactionEntry.Category> GetSavedOrgs()
+        internal static Dictionary<string, TransactionEntry.Category> GetSavedOrgs()
         {
             Dictionary<string, TransactionEntry.Category> orgsAndCats = [];
 
@@ -154,7 +150,7 @@ namespace TransactionExtractor
         /// [org],[cat]\n
         /// </summary>
         /// <param name="dict">dictionary to save</param>
-        public static void SaveOrgsAndCats(Dictionary<string, TransactionEntry.Category> dict)
+        internal static void SaveOrgsAndCats(Dictionary<string, TransactionEntry.Category> dict)
         {
             using StreamWriter sw = new(
                 new FileStream(orgFile, FileMode.Create, FileAccess.Write));
@@ -167,14 +163,8 @@ namespace TransactionExtractor
             
         }
 
-        [GeneratedRegex(@"(?:^DIRECT CHOICE ACCT# 2 .* PREVIOUS BALANCE .*\d\d$)|(?:^CHARGE$)")]
-        public static partial Regex Entrance();
 
-        [GeneratedRegex(@"(?:^Continued on page \d+$)|(?:^Notice)|(?:^\*\*\*)")]
-        public static partial Regex Exit();
-
-
-        public static List<TransactionEntry> GetEntriesFromPDF(string pdfFile)
+        internal static List<TransactionEntry> GetEntriesFromPDF(string pdfFile)
         {
             List<TransactionEntry> list = [];
 
@@ -197,16 +187,17 @@ namespace TransactionExtractor
                         {
                             if(inDataBlock)
                             {
-                                if (Exit().Match(line.ToString()).Success) 
+                                if (inDataBlock 
+                                    && RegexContainer.IsDataBlockExitGR().Match(line.ToString()).Success) 
                                 {
                                     inDataBlock = false;
                                     break;
                                 }
                                 string nextLine = line.ToString();
 
-                                if (TransactionEntry.IsNewEntryGR().IsMatch(nextLine))
+                                if (RegexContainer.IsNewEntryGR().IsMatch(nextLine))
                                 {
-                                    Console.WriteLine(line.ToString());
+                                    //Console.WriteLine(line.ToString());
                                     if (!String.IsNullOrEmpty(newEntry))
                                         list.Add(new TransactionEntry(newEntry));
 
@@ -221,7 +212,8 @@ namespace TransactionExtractor
                                 //Console.WriteLine(line.ToString());
                             } else
                             {
-                                if (Entrance().Match(line.ToString()).Success)
+                                if (!inDataBlock 
+                                    && RegexContainer.IsDataBlockEntranceGR().Match(line.ToString()).Success)
                                     inDataBlock = true;
                             }
                             //Console.WriteLine(line.ToString());
